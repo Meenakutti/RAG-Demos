@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Hour 4: RAG Evaluation & Metrics Demo
 ======================================
@@ -10,17 +11,22 @@ This demo teaches:
 """
 
 import json
+import os
 import numpy as np
 from collections import defaultdict
 from rouge_score import rouge_scorer
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from sentence_transformers import SentenceTransformer
+from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 
 # LangChain imports
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.docstore.document import Document
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 print("="*80)
 print("HOUR 4: RAG EVALUATION & METRICS")
@@ -61,7 +67,9 @@ Resolution: {ticket['resolution']}
     )
     documents.append(doc)
 
-embeddings = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
+embeddings = OpenAIEmbeddings(
+    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
+)
 vector_store = Chroma.from_documents(
     documents=documents,
     embedding=embeddings,
@@ -236,14 +244,17 @@ print("\n" + "="*80)
 print("PART 4: Semantic Similarity Metrics")
 print("="*80)
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# Initialize OpenAI client for semantic similarity
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+embedding_model = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
 
 def semantic_similarity(text1, text2):
     """
-    Compute cosine similarity between two texts
+    Compute cosine similarity between two texts using OpenAI embeddings
     """
-    emb1 = model.encode([text1])
-    emb2 = model.encode([text2])
+    response = client.embeddings.create(input=[text1, text2], model=embedding_model)
+    emb1 = np.array([response.data[0].embedding])
+    emb2 = np.array([response.data[1].embedding])
     return cosine_similarity(emb1, emb2)[0][0]
 
 print("\nSemantic Similarity Examples:")

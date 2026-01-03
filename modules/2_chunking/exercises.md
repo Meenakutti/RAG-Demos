@@ -200,7 +200,140 @@ Compare results for queries like:
 
 ---
 
-## Exercise 6: Build a Simple Vector Store CLI (Challenge)
+## Exercise 6: Semantic Chunking Experiment (Medium)
+
+**Task**: Compare semantic chunking with traditional fixed-size chunking.
+
+**What is Semantic Chunking?**
+Semantic chunking splits text based on meaning rather than character count. It uses embeddings to detect topic shifts and keeps semantically related content together.
+
+**Steps**:
+```python
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+# Initialize embeddings
+embeddings = HuggingFaceEmbeddings(
+    model_name='all-MiniLM-L6-v2',
+    model_kwargs={'device': 'cpu'}
+)
+
+# Create semantic chunker
+semantic_splitter = SemanticChunker(
+    embeddings=embeddings,
+    breakpoint_threshold_type="percentile"  # Try: "standard_deviation", "interquartile"
+)
+
+# Split documents
+semantic_chunks = semantic_splitter.split_documents(documents)
+
+# Compare with fixed-size chunking
+fixed_splitter = CharacterTextSplitter(chunk_size=300, chunk_overlap=30)
+fixed_chunks = fixed_splitter.split_documents(documents)
+```
+
+**Analysis Questions**:
+1. How many chunks does each strategy create?
+2. Do semantic chunks respect sentence/paragraph boundaries better?
+3. Which strategy keeps related information together?
+4. Try different `breakpoint_threshold_type` values - how do results change?
+
+**Test Query**: Search for "database connection problems" in both stores and compare relevance.
+
+---
+
+## Exercise 7: Markdown and HTML Chunking (Medium)
+
+**Task**: Practice structure-aware chunking for documentation.
+
+**Part A: Markdown Chunking**
+```python
+from langchain.text_splitter import MarkdownHeaderTextSplitter
+
+# Create a markdown troubleshooting guide
+markdown_content = """
+# API Integration Guide
+
+## Authentication
+
+### OAuth 2.0 Setup
+Configure OAuth credentials in your app settings.
+Use the authorization code flow for server-side apps.
+
+### API Keys
+Generate API keys from the developer dashboard.
+Keep keys secure and rotate them regularly.
+
+## Rate Limiting
+
+### Request Limits
+Standard tier: 1000 requests/hour
+Premium tier: 10000 requests/hour
+
+### Handling 429 Errors
+Implement exponential backoff when rate limited.
+"""
+
+headers_to_split_on = [
+    ("#", "Header 1"),
+    ("##", "Header 2"),
+    ("###", "Header 3"),
+]
+
+md_splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=headers_to_split_on,
+    strip_headers=False
+)
+
+md_chunks = md_splitter.split_text(markdown_content)
+
+# Examine chunks and metadata
+for chunk in md_chunks:
+    print(f"Content: {chunk.page_content[:50]}...")
+    print(f"Metadata: {chunk.metadata}\n")
+```
+
+**Part B: HTML Chunking**
+```python
+from langchain.text_splitter import HTMLHeaderTextSplitter
+
+html_content = """
+<html>
+<body>
+    <h1>Security Best Practices</h1>
+    
+    <h2>Password Policies</h2>
+    <p>Require minimum 12 characters with mixed case and symbols.</p>
+    
+    <h3>Password Rotation</h3>
+    <p>Enforce password changes every 90 days for sensitive accounts.</p>
+    
+    <h2>Two-Factor Authentication</h2>
+    <p>Enable 2FA for all admin accounts.</p>
+</body>
+</html>
+"""
+
+headers_to_split_on = [
+    ("h1", "Header 1"),
+    ("h2", "Header 2"),
+    ("h3", "Header 3"),
+]
+
+html_splitter = HTMLHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+html_chunks = html_splitter.split_text(html_content)
+```
+
+**Why This Matters**: 
+- Documentation often has hierarchical structure
+- Preserving header context improves retrieval
+- Metadata helps with filtering and source attribution
+
+**Challenge**: Load your own Markdown/HTML documentation and create a searchable knowledge base!
+
+---
+
+## Exercise 8: Build a Simple Vector Store CLI (Challenge)
 
 **Task**: Create an interactive tool to build, save, and search vector stores.
 
@@ -244,7 +377,7 @@ class VectorStoreManager:
 
 ---
 
-## Exercise 7: Overlap Analysis (Advanced)
+## Exercise 9: Overlap Analysis (Advanced)
 
 **Task**: Visualize how chunk overlap affects information preservation.
 

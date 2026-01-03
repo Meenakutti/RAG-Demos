@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Hour 2: Chunking & Vector Stores Demo
 ======================================
@@ -11,19 +12,30 @@ This demo teaches:
 
 import json
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import os
+from openai import OpenAI
 import faiss
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain_text_splitters import (
+    RecursiveCharacterTextSplitter, 
+    CharacterTextSplitter,
+    MarkdownHeaderTextSplitter,
+    HTMLHeaderTextSplitter
+)
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.vectorstores import Chroma, FAISS as LangChainFAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.docstore.document import Document
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 print("="*80)
 print("HOUR 2: CHUNKING & VECTOR STORES")
 print("="*80)
 
 # Load tickets
-with open('../data/synthetic_tickets.json', 'r') as f:
+with open('../../data/synthetic_tickets.json', 'r') as f:
     tickets = json.load(f)
 print(f"\nLoaded {len(tickets)} support tickets")
 
@@ -83,8 +95,118 @@ print(f"✓ Created {len(recursive_chunks)} chunks")
 print(f"  Tries to split on paragraph/sentence boundaries")
 print(f"  Sample chunk: {recursive_chunks[0].page_content[:100]}...")
 
-# Strategy 3: Whole documents (no chunking)
-print("\n--- Strategy 3: Whole Documents (No Chunking) ---")
+# Strategy 3: Semantic chunking (embedding-based) - SKIPPED FOR SPEED
+print("\n--- Strategy 3: Semantic Chunking (Skipped) ---")
+print("  Note: Semantic chunking uses embeddings to find natural break points")
+print("  Skipped in this demo to reduce API calls and runtime")
+print("  See exercises.md to implement this yourself!")
+
+# Uncomment to enable semantic chunking:
+"""
+# Initialize OpenAI embeddings for semantic chunker
+embeddings_model = OpenAIEmbeddings(
+    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
+)
+
+semantic_splitter = SemanticChunker(
+    embeddings=embeddings_model,
+    breakpoint_threshold_type="percentile"
+)
+semantic_chunks = semantic_splitter.split_documents(documents)
+print(f"✓ Created {len(semantic_chunks)} chunks")
+"""
+
+# Strategy 4: Markdown structure-aware chunking
+print("\n--- Strategy 4: Markdown Header Splitting ---")
+
+# Create sample markdown documentation
+markdown_doc = """
+# Database Troubleshooting Guide
+
+## Connection Issues
+
+### Timeout Errors
+If you encounter timeout errors, check the connection string and ensure the database server is reachable.
+Increase the connection timeout value in your configuration.
+
+### Authentication Failures
+Verify your credentials are correct. Check for expired passwords or locked accounts.
+Ensure the user has proper permissions on the database.
+
+## Performance Problems
+
+### Slow Queries
+Analyze query execution plans using EXPLAIN.
+Consider adding indexes on frequently queried columns.
+Review and optimize JOIN operations.
+
+### High CPU Usage
+Monitor long-running queries.
+Check for missing indexes causing table scans.
+"""
+
+headers_to_split_on = [
+    ("#", "Header 1"),
+    ("##", "Header 2"),
+    ("###", "Header 3"),
+]
+
+markdown_splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=headers_to_split_on,
+    strip_headers=False
+)
+md_chunks = markdown_splitter.split_text(markdown_doc)
+print(f"✓ Created {len(md_chunks)} chunks from markdown")
+print(f"  Preserves document structure and header context")
+if md_chunks:
+    print(f"  Sample chunk with metadata:")
+    print(f"    Content: {md_chunks[0].page_content[:80]}...")
+    print(f"    Metadata: {md_chunks[0].metadata}")
+
+# Strategy 5: HTML structure-aware chunking
+print("\n--- Strategy 5: HTML Header Splitting ---")
+
+# Create sample HTML documentation
+html_doc = """
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Email Configuration Guide</h1>
+    
+    <h2>SMTP Settings</h2>
+    <p>Configure your SMTP server settings in the admin panel. Use port 587 for TLS or port 465 for SSL.</p>
+    
+    <h3>Common SMTP Servers</h3>
+    <p>Gmail: smtp.gmail.com, Outlook: smtp.office365.com, Yahoo: smtp.mail.yahoo.com</p>
+    
+    <h2>IMAP Configuration</h2>
+    <p>Set up IMAP to sync your emails across devices. Use port 993 for secure connections.</p>
+    
+    <h3>Folder Mapping</h3>
+    <p>Map your email folders to the appropriate IMAP folders for proper synchronization.</p>
+</body>
+</html>
+"""
+
+headers_to_split_on_html = [
+    ("h1", "Header 1"),
+    ("h2", "Header 2"),
+    ("h3", "Header 3"),
+]
+
+html_splitter = HTMLHeaderTextSplitter(
+    headers_to_split_on=headers_to_split_on_html
+)
+html_chunks = html_splitter.split_text(html_doc)
+print(f"✓ Created {len(html_chunks)} chunks from HTML")
+print(f"  Respects HTML semantic structure")
+if html_chunks:
+    print(f"  Sample chunk with metadata:")
+    print(f"    Content: {html_chunks[0].page_content[:80]}...")
+    print(f"    Metadata: {html_chunks[0].metadata}")
+
+# Strategy 6: Whole documents (no chunking)
+print("\n--- Strategy 6: Whole Documents (No Chunking) ---")
 print(f"✓ Using {len(documents)} whole documents")
 print(f"  Good for small documents like our tickets")
 
@@ -95,14 +217,16 @@ print("\n" + "="*80)
 print("PART 2: Building FAISS Vector Store")
 print("="*80)
 
-# Load embedding model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-embedding_dim = 384
+# Initialize OpenAI client for embeddings
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+embedding_model_name = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
+embedding_dim = 1536  # text-embedding-3-small dimension
 
 # Use whole documents for this example
 texts = [doc.page_content for doc in documents]
 print(f"\nEncoding {len(texts)} documents...")
-embeddings = model.encode(texts, show_progress_bar=True)
+response = client.embeddings.create(input=texts, model=embedding_model_name)
+embeddings = np.array([data.embedding for data in response.data])
 
 # Create FAISS index
 print("\nBuilding FAISS index...")
@@ -113,7 +237,8 @@ print(f"✓ FAISS index created with {index.ntotal} vectors")
 # Test search
 query = "Authentication problems after password reset"
 print(f"\nSearching for: '{query}'")
-query_embedding = model.encode([query]).astype('float32')
+query_response = client.embeddings.create(input=[query], model=embedding_model_name)
+query_embedding = np.array([query_response.data[0].embedding], dtype='float32')
 
 k = 3  # Top-3 results
 distances, indices = index.search(query_embedding, k)
@@ -131,10 +256,9 @@ print("\n" + "="*80)
 print("PART 3: LangChain FAISS Integration")
 print("="*80)
 
-# Initialize embeddings
-embeddings_model = HuggingFaceEmbeddings(
-    model_name='all-MiniLM-L6-v2',
-    model_kwargs={'device': 'cpu'}
+# Initialize OpenAI embeddings for LangChain
+embeddings_model = OpenAIEmbeddings(
+    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
 )
 
 print("\nBuilding LangChain FAISS vector store...")

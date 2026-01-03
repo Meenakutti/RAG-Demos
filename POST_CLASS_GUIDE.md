@@ -38,10 +38,11 @@ Congratulations on completing the SupportDesk-RAG workshop! 🎉
 - Sentence window retrieval
 
 **Embeddings:**
-- Fine-tune embeddings on your domain
-- Try different models (OpenAI, Cohere, BGE)
+- Experiment with different OpenAI models (text-embedding-3-small vs large)
+- Try other providers (Cohere, Voyage AI, BGE)
+- Fine-tune embeddings on your domain data
 - Experiment with multilingual embeddings
-- Use matryoshka embeddings for adaptive dimensions
+- Use dimension reduction for cost/performance optimization
 
 **Retrieval:**
 - Implement re-ranking (Cohere, Cross-Encoder)
@@ -106,7 +107,7 @@ Congratulations on completing the SupportDesk-RAG workshop! 🎉
 ### Courses
 - DeepLearning.AI: Building Applications with Vector Databases
 - DeepLearning.AI: LangChain for LLM Application Development
-- Interview Kickstart: Agentic AI Course (Advanced Modules)
+- DeepLearning.AI: Building and Evaluating Advanced RAG Applications
 
 ### Papers
 - "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (Facebook AI, 2020)
@@ -181,9 +182,9 @@ Compare different approaches systematically
 
 ### Join Communities
 - LangChain Discord
-- r/LocalLLaMA
+- r/LocalLLaMA and r/LangChain on Reddit
 - Hugging Face Forums
-- Interview Kickstart Alumni Network
+- AI Engineer World's Fair Community
 
 ### Share Your Work
 - Publish on GitHub with documentation
@@ -209,12 +210,13 @@ Achieve 80%+ precision@5 on your custom evaluation dataset
 
 ---
 
-## 📧 Stay in Touch
+## 📧 Keep Building
 
 Questions? Ideas? Built something cool?
 
-- Email: [instructor-email]
-- LinkedIn: [instructor-linkedin]
-- GitHub: [instructor-github]
+- Share your projects on GitHub
+- Contribute to open source RAG projects
+- Write about your learnings on Medium or Dev.to
+- Connect with the community on Discord and Reddit
 
 **Keep building, keep learning! 🚀**

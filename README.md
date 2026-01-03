@@ -1,18 +1,17 @@
 # SupportDesk-RAG: A Support Ticket Retrieval & Troubleshooting Assistant
 
-## 4-Hour Training Workshop for Software Development Engineers
+## Hands-On RAG Workshop with OpenAI
 
 ### Workshop Overview
-This hands-on workshop teaches you to build a production-ready Retrieval-Augmented Generation (RAG) system using support ticket history. By the end, you'll have a working assistant that answers incident queries using ONLY retrieved ticket context, preventing hallucinations.
+This comprehensive workshop teaches you to build a production-ready Retrieval-Augmented Generation (RAG) system using OpenAI embeddings and language models. By the end, you'll have a working assistant that answers incident queries using retrieved ticket context, with strong safeguards against hallucinations.
 
 ### Learning Objectives
-- ✅ Understand embeddings and similarity search
-- ✅ Master chunking strategies for optimal retrieval
-- ✅ Build and query vector stores (FAISS, Chroma)
-- ✅ Implement a LangChain-based RAG pipeline end-to-end
-- ✅ Evaluate retrieval quality (precision/recall/F1)
-- ✅ Evaluate generated answers (ROUGE/BLEU)
-- ✅ Prevent hallucinations using prompt guards
+- ✅ Generate and work with OpenAI embeddings
+- ✅ Master chunking strategies for optimal retrieval  
+- ✅ Build efficient vector indexes with FAISS
+- ✅ Implement a complete RAG pipeline with LangChain
+- ✅ Evaluate and improve system performance
+- ✅ Deploy anti-hallucination safeguards
 
 ---
 
@@ -23,107 +22,94 @@ This hands-on workshop teaches you to build a production-ready Retrieval-Augment
 pip install -r requirements.txt
 ```
 
-### 2. Set Up OpenAI API Key (Optional)
+### 2. Configure OpenAI API
 ```bash
-# Windows
-$env:OPENAI_API_KEY="sk-your-key-here"
+# Copy the example environment file
+cp .env.example .env
 
-# Linux/Mac
-export OPENAI_API_KEY="sk-your-key-here"
+# Edit .env and add your API key
+# OPENAI_API_KEY=sk-your-key-here
 ```
 
 ### 3. Test Installation
 ```bash
-cd hour_1_embeddings
+cd modules/1_embeddings
 python demo.py
 ```
 
 ---
 
-## Workshop Schedule
+## Workshop Modules
 
-### Hour 1: Embeddings & Similarity Search (60 min)
-**Concepts (20 min)**
-- What are embeddings? Vector representations of text
-- Why embeddings matter for semantic search
-- Distance metrics: cosine similarity, dot product, Euclidean distance
-- Choosing the right embedding model
+### Module 1: Embeddings (`modules/1_embeddings/`)
+**Learn:**
+- Generate embeddings using OpenAI API
+- Compute semantic similarity scores
+- Visualize embeddings in 2D space
 
-**Hands-on Demo (30 min)**
-- Generate embeddings for sample support tickets
-- Compute similarity scores between queries and tickets
-- Rank and retrieve most relevant matches
-- Visualize embeddings in 2D space (PCA/t-SNE)
-
-**Exercise (10 min)**
-- Find the top-5 most similar tickets for given queries
-- Experiment with different embedding models
-
-📂 **Materials**: `hour_1_embeddings/`
+**Run:**
+```bash
+cd modules/1_embeddings
+python demo.py
+```
 
 ---
 
-### Hour 2: Chunking & Vector Stores (60 min)
-**Concepts (20 min)**
-- Why chunking matters: context window limits and precision
-- Fixed-size chunking vs semantic chunking vs windowed chunping
-- Vector stores: FAISS, Chroma, Pinecone comparison
-- Indexing strategies and trade-offs
+### Module 2: Chunking (`modules/2_chunking/`)
+**Learn:**
+- Fixed-size vs recursive vs semantic chunking
+- Structure-aware splitting (Markdown/HTML)
+- Build vector stores with Chroma and FAISS
 
-**Hands-on Demo (30 min)**
-- Implement 3 chunking strategies on support tickets
-- Build a FAISS index from scratch
-- Query by vector similarity
-- Compare with Chroma's high-level abstraction
-
-**Exercise (10 min)**
-- Index tickets with different chunk sizes
-- Measure retrieval quality for each strategy
-
-📂 **Materials**: `hour_2_chunking/`
+**Run:**
+```bash
+cd modules/2_chunking
+python demo.py
+```
 
 ---
 
-### Hour 3: Build the RAG Pipeline (60 min)
-**Concepts (15 min)**
-- RAG architecture: retrieve → inject → generate
-- LangChain components: retrievers, prompt templates, chains
+### Module 3: Indexing (`modules/3_indexing/`)
+**Learn:**
+- FAISS index types (Flat, IVF, HNSW, PQ)
+- Exact vs approximate search trade-offs
+- Performance benchmarking and optimization
+
+**Run:**
+```bash
+cd modules/3_indexing
+python demo.py
+```
+
+---
+
+### Module 4: RAG Pipeline (`modules/4_rag_pipeline/`)
+**Learn:**
+- Complete RAG architecture
+- LangChain integration
+- Prompt engineering for grounded responses
 - Anti-hallucination strategies
-- Context injection patterns
 
-**Hands-on Demo (35 min)**
-- Ingest synthetic support tickets
-- Build the full pipeline: chunk → embed → index → retrieve
-- Create prompt templates with strict grounding rules
-- Generate answers with retrieved context
-- Implement "No relevant tickets found" fallback
-
-**Exercise (10 min)**
-- Modify prompts to test hallucination resistance
-- Add citation formatting to responses
-
-📂 **Materials**: `hour_3_rag_pipeline/`
+**Run:**
+```bash
+cd modules/4_rag_pipeline
+python demo.py
+```
 
 ---
 
-### Hour 4: Evaluation & Final Demo (60 min)
-**Concepts (15 min)**
-- Retrieval metrics: precision@k, recall@k, F1
-- Generation metrics: ROUGE-L, BLEU
-- Manual evaluation for hallucinations
-- A/B testing RAG configurations
+### Module 5: Evaluation (`modules/5_evaluation/`)
+**Learn:**
+- Retrieval metrics (Precision@K, Recall, MRR, F1)
+- Generation metrics (ROUGE, BLEU)
+- Semantic similarity evaluation
+- Systematic testing and improvement
 
-**Hands-on Demo (30 min)**
-- Create evaluation dataset (queries + labeled relevant tickets)
-- Compute retrieval metrics
-- Evaluate generated answers against reference answers
-- Manual hallucination check workflow
-
-**Final Demo (15 min)**
-- Interactive SupportDesk-RAG assistant
-- Query real scenarios and see retrieved context
-
-📂 **Materials**: `hour_4_evaluation/`
+**Run:**
+```bash
+cd modules/5_evaluation
+python demo.py
+```
 
 ---
 
@@ -133,51 +119,111 @@ python demo.py
 SupportDesk-RAG-Workshop/
 ├── README.md                    # This file
 ├── requirements.txt             # Python dependencies
-├── QUICKSTART.md               # Detailed setup guide
-├── POST_WORKSHOP_GUIDE.md      # Next steps after workshop
+├── .env.example                # Environment template
+├── QUICKSTART.md               # Detailed setup
+├── POST_CLASS_GUIDE.md         # Advanced topics
 ├── data/
 │   └── synthetic_tickets.json  # Sample support tickets
-├── hour_1_embeddings/
-│   ├── demo.py                 # Live demo code
-│   └── exercises.md            # Practice exercises
-├── hour_2_chunking/
-│   ├── demo.py
-│   └── exercises.md
-├── hour_3_rag_pipeline/
-│   ├── demo.py
-│   └── exercises.md
-└── hour_4_evaluation/
-    ├── demo.py
-    ├── evaluation_queries.json
-    └── exercises.md
+└── modules/
+    ├── 1_embeddings/
+    │   ├── demo.py
+    │   └── exercises.md
+    ├── 2_chunking/
+    │   ├── demo.py
+    │   └── exercises.md
+    ├── 3_indexing/
+    │   ├── demo.py
+    │   └── exercises.md
+    ├── 4_rag_pipeline/
+    │   ├── demo.py
+    │   └── exercises.md
+    └── 5_evaluation/
+        ├── demo.py
+        ├── evaluation_queries.json
+        └── exercises.md
 ```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create a `.env` file with:
+
+```env
+# Required
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional (defaults shown)
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-4o-mini
+```
+
+### Model Options
+
+**Embeddings:**
+- `text-embedding-3-small` (1536 dims, recommended)
+- `text-embedding-3-large` (3072 dims, highest quality)
+
+**Chat:**
+- `gpt-4o-mini` (recommended for cost/performance)
+- `gpt-4o` (most capable)
+
+---
+
+## 💰 Cost Estimate
+
+Running all modules: **< $0.10**
+- Embeddings: ~$0.01 (20 tickets + queries)
+- Chat completions: ~$0.05 (RAG pipeline demos)
+
+See [OpenAI Pricing](https://openai.com/pricing) for current rates.
 
 ---
 
 ## 🎯 Prerequisites
 
 - Python 3.8+
-- Basic understanding of Python programming
-- Familiarity with APIs (optional)
-- OpenAI API key (optional - can use local models)
+- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
+- Basic understanding of Python
+- Familiarity with APIs (helpful but not required)
+
+---
+
+## 🛠️ Troubleshooting
+
+### OpenAI API Errors
+- Verify API key in `.env` file
+- Check credits: https://platform.openai.com/usage
+- Rate limits: Wait 60s if you get 429 errors
+
+### Import Errors
+```bash
+pip install --upgrade -r requirements.txt
+```
+
+### Path Issues
+- Always run demos from their module directory
+- Ensure `data/synthetic_tickets.json` exists
 
 ---
 
 ## 📚 Additional Resources
 
 - [LangChain Documentation](https://python.langchain.com/)
-- [Sentence Transformers](https://www.sbert.net/)
-- [FAISS Documentation](https://faiss.ai/)
+- [FAISS Documentation](https://github.com/facebookresearch/faiss)
+- [OpenAI API Reference](https://platform.openai.com/docs)
 - [Chroma Documentation](https://docs.trychroma.com/)
 
 ---
 
 ## 🤝 Contributing
 
-Found a bug or have suggestions? Feel free to open an issue or submit a pull request!
+Found a bug or have suggestions? Open an issue or submit a pull request!
 
 ---
 
 ## 📄 License
 
-This workshop material is provided for educational purposes.
+MIT License - Feel free to use for learning and teaching!

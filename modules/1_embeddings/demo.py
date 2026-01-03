@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Hour 1: Embeddings & Similarity Search Demo
 ============================================
@@ -11,19 +12,27 @@ This demo teaches:
 
 import json
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import os
+from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from dotenv import load_dotenv
 
-# Load the sentence transformer model
-print("Loading embedding model...")
-model = SentenceTransformer('all-MiniLM-L6-v2')  # 384-dimensional embeddings
-print(f"Model loaded! Embedding dimension: {model.get_sentence_embedding_dimension()}")
+# Load environment variables
+load_dotenv()
+
+# Initialize OpenAI client
+print("Initializing OpenAI client...")
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+embedding_model = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
+embedding_dim = 1536  # text-embedding-3-small dimension
+print(f"Using OpenAI model: {embedding_model}")
+print(f"Embedding dimension: {embedding_dim}")
 
 # Load synthetic tickets
 print("\nLoading support tickets...")
-with open('../data/synthetic_tickets.json', 'r') as f:
+with open('../../data/synthetic_tickets.json', 'r') as f:
     tickets = json.load(f)
 print(f"Loaded {len(tickets)} support tickets")
 
@@ -52,9 +61,10 @@ ticket_texts = [
 ]
 
 print("\nGenerating embeddings for all tickets...")
-embeddings = model.encode(ticket_texts, show_progress_bar=True)
+response = client.embeddings.create(input=ticket_texts, model=embedding_model)
+embeddings = np.array([data.embedding for data in response.data])
 print(f"✓ Generated embeddings with shape: {embeddings.shape}")
-print(f"  (20 tickets × 384 dimensions)")
+print(f"  ({len(tickets)} tickets × {embedding_dim} dimensions)")
 
 # Show what an embedding looks like
 print(f"\nFirst 10 values of embedding for ticket 1:")
@@ -73,7 +83,8 @@ query = "Users can't authenticate after changing password"
 print(f"\nSearch Query: '{query}'")
 
 # Generate embedding for the query
-query_embedding = model.encode([query])
+query_response = client.embeddings.create(input=[query], model=embedding_model)
+query_embedding = np.array([query_response.data[0].embedding])
 print(f"Query embedding shape: {query_embedding.shape}")
 
 # Compute cosine similarity between query and all tickets
@@ -112,7 +123,7 @@ print("\n" + "="*80)
 print("PART 4: Visualizing Embeddings")
 print("="*80)
 
-print("\nReducing 384 dimensions to 2D using PCA...")
+print(f"\nReducing {embedding_dim} dimensions to 2D using PCA...")
 pca = PCA(n_components=2)
 embeddings_2d = pca.fit_transform(embeddings)
 query_2d = pca.transform(query_embedding)
@@ -173,7 +184,8 @@ test_queries = [
 
 print("\nTesting semantic search with different queries:")
 for test_query in test_queries:
-    query_emb = model.encode([test_query])
+    query_resp = client.embeddings.create(input=[test_query], model=embedding_model)
+    query_emb = np.array([query_resp.data[0].embedding])
     sims = cosine_similarity(query_emb, embeddings)[0]
     top_idx = np.argmax(sims)
     

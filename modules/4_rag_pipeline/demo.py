@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Hour 3: Building the Complete RAG Pipeline Demo
 ================================================
@@ -11,15 +12,14 @@ This demo teaches:
 
 import json
 import os
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
 
-# Try to load OpenAI key
+# Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -71,13 +71,12 @@ Resolution:
 
 print(f"✓ Created {len(documents)} documents with metadata")
 
-# Initialize embeddings
-print("\nInitializing embedding model...")
-embeddings = HuggingFaceEmbeddings(
-    model_name='all-MiniLM-L6-v2',
-    model_kwargs={'device': 'cpu'}
+# Initialize OpenAI embeddings
+print("\nInitializing OpenAI embedding model...")
+embeddings = OpenAIEmbeddings(
+    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
 )
-print("✓ Embedding model ready")
+print("✓ OpenAI embedding model ready")
 
 # Build vector store
 print("\nBuilding Chroma vector store...")
@@ -161,10 +160,10 @@ print("="*80)
 if os.getenv("OPENAI_API_KEY"):
     print("✓ OpenAI API key found")
     llm = ChatOpenAI(
-        model="gpt-3.5-turbo",
+        model=os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
         temperature=0,  # Deterministic output, less creativity
     )
-    print("✓ Using GPT-3.5-turbo")
+    print(f"✓ Using {os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini')}")
 else:
     print("⚠ OpenAI API key not found!")
     print("  Please set OPENAI_API_KEY environment variable")
