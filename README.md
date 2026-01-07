@@ -124,27 +124,31 @@ SupportDesk-RAG-Workshop/
 ├── README.md                    # This file
 ├── requirements.txt             # Python dependencies
 ├── .env.example                # Environment template
-├── QUICKSTART.md               # Detailed setup
-├── POST_CLASS_GUIDE.md         # Advanced topics
+├── POST_CLASS_GUIDE.md         # Post-workshop learning guide
 ├── data/
 │   └── synthetic_tickets.json  # Sample support tickets
 └── modules/
     ├── 1_embeddings/
-    │   ├── demo.py
-    │   └── exercises.md
+    │   ├── demo.py             # Working demo code
+    │   ├── notes.md            # Instructor notes
+    │   └── exercises.md        # Practice exercises
     ├── 2_chunking/
     │   ├── demo.py
+    │   ├── notes.md
     │   └── exercises.md
     ├── 3_indexing/
     │   ├── demo.py
+    │   ├── notes.md
     │   └── exercises.md
     ├── 4_rag_pipeline/
     │   ├── demo.py
+    │   ├── notes.md
     │   └── exercises.md
     └── 5_evaluation/
         ├── demo.py
-        ├── evaluation_queries.json
-        └── exercises.md
+        ├── notes.md
+        ├── exercises.md
+        └── evaluation_queries.json
 ```
 
 ---
