@@ -8,25 +8,38 @@ This demo teaches:
 2. Computing similarity scores
 3. Finding most similar documents
 4. Visualizing embeddings in 2D space
+
+LEARNING RESOURCES:
+- OpenAI Embeddings Guide: https://platform.openai.com/docs/guides/embeddings
+- Understanding Vector Embeddings: https://www.pinecone.io/learn/vector-embeddings/
+- Cosine Similarity Explained: https://en.wikipedia.org/wiki/Cosine_similarity
+- Semantic Search Intro: https://www.sbert.net/examples/applications/semantic-search/README.html
 """
 
 import json
-import numpy as np
+import numpy as np  # For numerical operations on embedding vectors
 import os
-from openai import OpenAI
-from sklearn.metrics.pairwise import cosine_similarity
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-from dotenv import load_dotenv
+from openai import OpenAI  # OpenAI API client for generating embeddings
+from sklearn.metrics.pairwise import cosine_similarity  # Measure similarity between vectors
+import matplotlib.pyplot as plt  # For visualizing embeddings
+from sklearn.decomposition import PCA  # Dimensionality reduction for visualization
+from dotenv import load_dotenv  # Load environment variables from .env file
 
-# Load environment variables
+# Load environment variables (API keys, model names, etc.)
+# Best practice: Never hardcode API keys in your code!
 load_dotenv()
 
 # Initialize OpenAI client
+# Reference: https://platform.openai.com/docs/api-reference/embeddings
 print("Initializing OpenAI client...")
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Choose embedding model
+# text-embedding-3-small: 1536 dimensions, fast and cost-effective
+# text-embedding-3-large: 3072 dimensions, higher quality but more expensive
+# Reference: https://platform.openai.com/docs/guides/embeddings/embedding-models
 embedding_model = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
-embedding_dim = 1536  # text-embedding-3-small dimension
+embedding_dim = 1536  # Number of dimensions in the embedding vector
 print(f"Using OpenAI model: {embedding_model}")
 print(f"Embedding dimension: {embedding_dim}")
 
@@ -55,18 +68,28 @@ print("PART 1: Generating Embeddings")
 print("="*80)
 
 # Combine title and description for richer context
+# TIP: More context generally leads to better embeddings
+# Include all relevant information that helps distinguish this document from others
 ticket_texts = [
     f"{ticket['title']}. {ticket['description']}" 
     for ticket in tickets
 ]
 
+# Generate embeddings using OpenAI's API
+# What are embeddings? High-dimensional vectors that capture semantic meaning
+# Similar meanings → similar vectors (measured by distance/angle between vectors)
+# Reference: https://platform.openai.com/docs/guides/embeddings/what-are-embeddings
 print("\nGenerating embeddings for all tickets...")
 response = client.embeddings.create(input=ticket_texts, model=embedding_model)
+
+# Convert API response to NumPy array for easier mathematical operations
 embeddings = np.array([data.embedding for data in response.data])
 print(f"✓ Generated embeddings with shape: {embeddings.shape}")
 print(f"  ({len(tickets)} tickets × {embedding_dim} dimensions)")
 
 # Show what an embedding looks like
+# Each number represents the "strength" along a semantic dimension
+# You can't interpret individual values, but the overall pattern captures meaning
 print(f"\nFirst 10 values of embedding for ticket 1:")
 print(embeddings[0][:10])
 print("  (These numbers encode the semantic meaning of the text)")
@@ -82,12 +105,20 @@ print("="*80)
 query = "Users can't authenticate after changing password"
 print(f"\nSearch Query: '{query}'")
 
-# Generate embedding for the query
+# Generate embedding for the query using the SAME model as documents
+# IMPORTANT: Always use the same embedding model for queries and documents!
+# Different models produce incompatible vector spaces
 query_response = client.embeddings.create(input=[query], model=embedding_model)
 query_embedding = np.array([query_response.data[0].embedding])
 print(f"Query embedding shape: {query_embedding.shape}")
 
 # Compute cosine similarity between query and all tickets
+# Cosine similarity measures the angle between vectors (range: -1 to 1)
+# 1 = identical direction (very similar)
+# 0 = perpendicular (unrelated)
+# -1 = opposite direction (contradictory)
+# Reference: https://en.wikipedia.org/wiki/Cosine_similarity
+# Why cosine? It's invariant to vector magnitude, only cares about direction
 similarities = cosine_similarity(query_embedding, embeddings)[0]
 print(f"\nComputed similarity scores for {len(similarities)} tickets")
 print(f"Similarity range: [{similarities.min():.4f}, {similarities.max():.4f}]")
@@ -100,7 +131,12 @@ print("PART 3: Finding Most Similar Tickets")
 print("="*80)
 
 # Get top-5 most similar tickets
+# This is the core of semantic search: rank by similarity score
 top_k = 5
+
+# np.argsort returns indices that would sort the array
+# [::-1] reverses to get descending order (highest similarity first)
+# [:top_k] takes only the top K results
 top_indices = np.argsort(similarities)[::-1][:top_k]
 
 print(f"\nTop {top_k} most similar tickets to query: '{query}'")
@@ -126,10 +162,13 @@ print("="*80)
 print(f"\nTo visualize {embedding_dim}-dimensional embeddings, we need to project them into 2D...")
 print("Think of it like taking a photo of a 3D object - we lose some detail but can see relationships.")
 
-# Use PCA to reduce dimensions (behind the scenes - students don't need to worry about this)
+# Use PCA (Principal Component Analysis) to reduce dimensions
+# PCA finds the 2 directions that capture the most variance in the data
+# Reference: https://scikit-learn.org/stable/modules/decomposition.html#pca
+# Don't worry about the math - just know it preserves relative distances as much as possible
 pca = PCA(n_components=2)
-embeddings_2d = pca.fit_transform(embeddings)
-query_2d = pca.transform(query_embedding)
+embeddings_2d = pca.fit_transform(embeddings)  # Transform all ticket embeddings
+query_2d = pca.transform(query_embedding)  # Transform query using same projection
 
 print("✓ Embeddings projected to 2D for visualization")
 print("\nWhat you'll see:")
@@ -139,6 +178,7 @@ print("  • Red star = your search query")
 print("  • Red circles = top-5 matches")
 
 # Create the plot
+# Matplotlib reference: https://matplotlib.org/stable/tutorials/index.html
 plt.figure(figsize=(12, 8))
 
 # Plot all tickets by category
