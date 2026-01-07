@@ -45,7 +45,7 @@ python demo.py
 **Learn:**
 - Generate embeddings using OpenAI API
 - Compute semantic similarity scores
-- Visualize embeddings in 2D space
+- Visualize similarity relationships with heatmaps
 
 **Run:**
 ```bash
