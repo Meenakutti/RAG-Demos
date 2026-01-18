@@ -3,6 +3,7 @@ langchain==0.1.0
 langchain-openai==0.0.5
 langchain-community==0.0.13
 langchain-experimental
+langgraph>=0.0.20
 
 # LlamaIndex (for indexing strategies module)
 llama-index>=0.14.0
