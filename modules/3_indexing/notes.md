@@ -4,6 +4,48 @@
 
 Indexing determines how documents are organized and retrieved in a RAG system. The right indexing strategy dramatically impacts retrieval accuracy, speed, and answer quality. This module explores five core approaches using LlamaIndex.
 
+## ⚠️ Two Types of "Indexing" - Don't Confuse Them!
+
+The term "indexing" is overloaded in the RAG ecosystem. Before proceeding, let's distinguish two completely different concepts:
+
+### 1. RAG-Level Indexing (Knowledge Indexing)
+
+**What it is:** How you organize and structure your private data *before* any query happens, so the right context can be retrieved.
+
+**Examples:**
+- How documents are chunked (size, overlap, semantics)
+- Hierarchical structure (document → section → paragraph)
+- Summary indexes vs detail indexes
+- Metadata & keyword indexes
+- Multiple logical indexes with query routing
+
+**Question it answers:** 👉 *"What knowledge is even retrievable in this system?"*
+
+### 2. DB-Level Indexing (Vector / ANN Indexing)
+
+**What it is:** How a vector database *internally* stores and searches vectors efficiently.
+
+**Examples:**
+- HNSW (Hierarchical Navigable Small World)
+- IVF (Inverted File Index)
+- PQ (Product Quantization)
+- DiskANN
+
+**Question it answers:** 👉 *"How fast can we search the vectors that already exist?"*
+
+### The Key Distinction
+
+| Aspect | RAG-Level Indexing | DB-Level Indexing |
+|--------|-------------------|-------------------|
+| **Focus** | Knowledge organization | Search performance |
+| **Who controls it** | You (the developer) | The vector DB |
+| **Impact** | What gets retrieved | How fast it's retrieved |
+| **This module** | ✅ **Primary focus** | Mentioned but abstracted |
+
+> **This module focuses on RAG-level knowledge indexing** — the higher-level abstraction that determines *what* your system can retrieve. DB-level indexing (HNSW, IVF, etc.) is handled by your vector database and is largely a performance optimization you configure, not design.
+
+---
+
 ## Why LlamaIndex for This Module?
 
 **Important:** For this module, we're using **LlamaIndex** instead of LangChain to demonstrate indexing strategies. Here's why:
