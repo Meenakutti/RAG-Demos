@@ -13,7 +13,7 @@ from langchain_text_splitters import (
     CharacterTextSplitter,
     RecursiveCharacterTextSplitter
 )
-from langchain_community.vectorstores import Chroma, FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
@@ -82,7 +82,7 @@ print("EXERCISE 2: Change the Search Query")
 print("=" * 80)
 
 # Build a simple store for testing
-store = FAISS.from_documents(documents, embeddings)
+store = Chroma.from_documents(documents, embeddings, collection_name="exercise2")
 
 queries = [
     "Database is timing out frequently",
@@ -192,7 +192,7 @@ for i, (doc, score) in enumerate(results_with_scores, 1):
     print(f"   Ticket: {doc.metadata['ticket_id']}")
     print(f"   Category: {doc.metadata['category']}")
 
-print("\n→ Lower distance = more similar (FAISS uses L2 distance)")
+print("\n→ Lower score = more similar (Chroma uses L2 distance)")
 
 
 # ============================================================================
@@ -226,7 +226,7 @@ print("\n" + "=" * 80)
 print("EXERCISE 8: Save and Load Vector Store")
 print("=" * 80)
 
-# Build documents for FAISS
+# Build documents for Chroma
 simple_docs = [
     Document(
         page_content=f"{t['title']}. {t['description']}",
@@ -235,18 +235,23 @@ simple_docs = [
     for t in tickets
 ]
 
-# Step 1: Build and save
+# Step 1: Build and save (Chroma persists automatically with persist_directory)
 print("\nBuilding vector store...")
-faiss_store = FAISS.from_documents(simple_docs, embeddings)
-faiss_store.save_local("./solution_faiss_index")
-print("✓ Saved to ./solution_faiss_index")
+persist_dir = "./solution_chroma_db"
+chroma_store = Chroma.from_documents(
+    simple_docs, 
+    embeddings, 
+    collection_name="exercise8",
+    persist_directory=persist_dir
+)
+print(f"✓ Saved to {persist_dir}")
 
-# Step 2: Load it back
+# Step 2: Load it back (create new Chroma instance pointing to same directory)
 print("\nLoading vector store...")
-loaded_store = FAISS.load_local(
-    "./solution_faiss_index",
-    embeddings,
-    allow_dangerous_deserialization=True
+loaded_store = Chroma(
+    persist_directory=persist_dir,
+    embedding_function=embeddings,
+    collection_name="exercise8"
 )
 print("✓ Loaded from disk")
 
@@ -266,9 +271,9 @@ print("CLEANUP")
 print("=" * 80)
 
 import shutil
-if os.path.exists("./solution_faiss_index"):
-    shutil.rmtree("./solution_faiss_index")
-    print("✓ Cleaned up solution_faiss_index")
+if os.path.exists("./solution_chroma_db"):
+    shutil.rmtree("./solution_chroma_db")
+    print("✓ Cleaned up solution_chroma_db")
 
 
 # ============================================================================
@@ -283,7 +288,7 @@ Key Takeaways:
 1. Larger chunk size = fewer chunks, but may lose precision
 2. Different queries find different relevant documents
 3. Metadata filtering narrows search to specific categories/priorities
-4. FAISS returns distance scores (lower = more similar)
+4. Chroma returns distance scores (lower = more similar)
 5. Persisting vector stores saves embedding computation time
 
 Next: Move on to Module 3 - Indexing Strategies!

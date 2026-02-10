@@ -5,13 +5,12 @@ Module 2: Chunking & Vector Stores Demo
 
 This demo teaches:
 1. Different chunking strategies for long documents
-2. Building a FAISS vector store (low-level approach)
-3. Using Chroma for high-level abstraction (recommended for production)
-4. Comparing retrieval quality across strategies
+2. Building a Chroma vector store
+3. Comparing retrieval quality across strategies
+4. Metadata filtering for targeted search
 
 LEARNING RESOURCES:
 - Text Splitting Guide: https://python.langchain.com/docs/modules/data_connection/document_transformers/
-- FAISS Documentation: https://github.com/facebookresearch/faiss/wiki
 - Chroma DB: https://docs.trychroma.com/
 - Chunking Best Practices: https://www.pinecone.io/learn/chunking-strategies/
 
@@ -29,10 +28,7 @@ When do you need chunking?
 """
 
 import json
-import numpy as np
 import os
-from openai import OpenAI
-import faiss  # Facebook AI Similarity Search - fast vector search library
 from langchain_text_splitters import (  # Various splitting strategies
     RecursiveCharacterTextSplitter,  # Best general-purpose splitter
     CharacterTextSplitter,  # Simple split by character count
@@ -40,7 +36,7 @@ from langchain_text_splitters import (  # Various splitting strategies
     HTMLHeaderTextSplitter  # Splits based on HTML tags
 )
 from langchain_experimental.text_splitter import SemanticChunker  # AI-powered semantic chunking
-from langchain_community.vectorstores import Chroma, FAISS as LangChainFAISS  # Vector databases
+from langchain_community.vectorstores import Chroma  # Vector database
 from langchain_openai import OpenAIEmbeddings  # OpenAI embedding function
 from langchain_core.documents import Document  # Document abstraction
 from dotenv import load_dotenv
@@ -194,14 +190,6 @@ print(f"  Sample chunk: {recursive_chunks[0].page_content[:100]}...")
 #   3. Compare consecutive sentences using cosine similarity
 #   4. When similarity DROPS significantly → topic changed → split here!
 #
-# EXAMPLE:
-#   Sentence 1: "AI is transforming healthcare." → embed → [0.8, 0.2, ...]
-#   Sentence 2: "Machine learning diagnoses diseases." → embed → [0.75, 0.25, ...]
-#   Similarity(1,2) = 0.95 → HIGH! Same topic, keep together
-#   
-#   Sentence 3: "The stock market crashed." → embed → [0.1, 0.9, ...]
-#   Similarity(2,3) = 0.2 → LOW! Topic changed, SPLIT HERE!
-#
 # PROS: Best semantic coherence, natural topic boundaries
 # CONS: EXPENSIVE (needs embedding for every sentence), slow
 # =============================================================================
@@ -214,6 +202,23 @@ embeddings_model = OpenAIEmbeddings(
     model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
 )
 
+# Demo with a paragraph that has CLEAR topic shifts
+# This makes it obvious where semantic chunking will split
+demo_paragraph = """
+Database performance is critical for application speed. Slow queries can cause timeouts and frustrated users. Adding proper indexes to frequently queried columns dramatically improves response times. Query optimization should be a top priority for any development team.
+
+The weather forecast shows rain expected throughout the weekend. Temperatures will drop to the mid-40s by Sunday evening. Residents should prepare for possible flooding in low-lying areas. Don't forget to bring an umbrella if you're heading out.
+
+Authentication security requires multiple layers of protection. Passwords should be hashed using bcrypt or Argon2. Two-factor authentication adds an essential second layer of defense. Session tokens must be rotated regularly to prevent hijacking. API keys should never be exposed in client-side code.
+"""
+
+print("\n  📝 Demo Text (3 distinct topics):")
+print("  " + "-"*70)
+print("  Topic 1: Database performance (sentences 1-4)")
+print("  Topic 2: Weather forecast (sentences 5-8)")
+print("  Topic 3: Authentication security (sentences 9-13)")
+print("  " + "-"*70)
+
 semantic_splitter = SemanticChunker(
     embeddings=embeddings_model,
     # How to detect "topic change":
@@ -222,8 +227,25 @@ semantic_splitter = SemanticChunker(
     # - "interquartile": Split where similarity is below Q1 - 1.5*IQR
     breakpoint_threshold_type="percentile"
 )
-semantic_chunks = semantic_splitter.split_documents(documents)
-print(f"✓ Created {len(semantic_chunks)} chunks")
+
+demo_doc = Document(page_content=demo_paragraph.strip())
+semantic_chunks = semantic_splitter.split_documents([demo_doc])
+print(f"\n✓ Created {len(semantic_chunks)} chunks (expected: ~3 for 3 topics)")
+
+# Show each semantic chunk
+print("\n  📊 Resulting Semantic Chunks:")
+print("  " + "-"*70)
+for i, chunk in enumerate(semantic_chunks):
+    print(f"\n  Chunk {i+1} ({len(chunk.page_content)} chars):")
+    print("  " + "~"*60)
+    # Show full content for clarity
+    for line in chunk.page_content.strip().split('\n'):
+        if line.strip():
+            print(f"    {line.strip()}")
+    print("  " + "~"*60)
+
+print("\n  ✨ Notice how each chunk contains semantically related sentences!")
+print("  The chunker detected topic shifts between database → weather → auth")
 
 # =============================================================================
 # STRATEGY 4: Markdown Structure-Aware Splitting
@@ -362,137 +384,10 @@ print(f"✓ Using {len(documents)} whole documents")
 print(f"  Good for small documents like our tickets")
 
 # ============================================================================
-# PART 2: Building FAISS Index from Scratch (Low-Level)
+# PART 2: Chroma Vector Store
 # ============================================================================
 #
-# WHAT IS FAISS?
-#   Facebook AI Similarity Search - an efficient vector search library
-#   Purely a search algorithm, NOT a database (no persistence by default)
-#
-# WHY SHOW THIS?
-#   To understand what's happening "under the hood"
-#   In practice, you'll use higher-level tools like Chroma (Part 4)
-#
-# THE STEPS:
-#   1. Generate embeddings for all documents
-#   2. Create a FAISS index and add vectors
-#   3. For queries: embed the query → search the index → get indices
-#   4. Look up original documents by index
-#
-# ============================================================================
-print("\n" + "="*80)
-print("PART 2: Building FAISS Vector Store (Low-Level)")
-print("="*80)
-
-# Initialize OpenAI client for embeddings
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-embedding_model_name = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
-embedding_dim = 1536  # text-embedding-3-small outputs 1536-dimensional vectors
-
-# Extract text from documents for embedding
-texts = [doc.page_content for doc in documents]
-print(f"\nEncoding {len(texts)} documents...")
-
-# Generate embeddings for ALL documents (batch API call - efficient!)
-response = client.embeddings.create(input=texts, model=embedding_model_name)
-embeddings = np.array([data.embedding for data in response.data])
-print(f"  Embeddings shape: {embeddings.shape}")  # (num_docs, 1536)
-
-# -----------------------------------------------------------------------------
-# Create FAISS index
-# -----------------------------------------------------------------------------
-# IndexFlatL2 = "Flat" index using L2 (Euclidean) distance
-# "Flat" means brute-force search (compares query to ALL vectors)
-# Good for small datasets; for millions of vectors, use IVF or HNSW indices
-# -----------------------------------------------------------------------------
-print("\nBuilding FAISS index...")
-index = faiss.IndexFlatL2(embedding_dim)  # Initialize empty index
-index.add(embeddings.astype('float32'))   # Add all document vectors
-print(f"✓ FAISS index created with {index.ntotal} vectors")
-
-# -----------------------------------------------------------------------------
-# Search the index
-# -----------------------------------------------------------------------------
-# FAISS returns:
-#   - distances: How far each result is from the query (lower = better for L2)
-#   - indices: Position in the original array (use to look up documents)
-# -----------------------------------------------------------------------------
-query = "Authentication problems after password reset"
-print(f"\nSearching for: '{query}'")
-
-# Step 1: Embed the query (MUST use same model as documents!)
-query_response = client.embeddings.create(input=[query], model=embedding_model_name)
-query_embedding = np.array([query_response.data[0].embedding], dtype='float32')
-
-# Step 2: Search the index
-k = 3  # Return top 3 results
-distances, indices = index.search(query_embedding, k)
-# distances shape: (1, k) - one row per query
-# indices shape: (1, k) - positions of matching documents
-
-print(f"\nTop {k} results:")
-for i, (idx, dist) in enumerate(zip(indices[0], distances[0]), 1):
-    print(f"\n#{i} - Distance: {dist:.4f}")  # Lower distance = more similar
-    print(f"Ticket: {tickets[idx]['ticket_id']}")
-    print(f"Title: {tickets[idx]['title']}")
-
-# ============================================================================
-# PART 3: Using LangChain FAISS (High-Level API)
-# ============================================================================
-#
-# LangChain wraps FAISS to provide a cleaner interface:
-#   - Handles embedding generation automatically
-#   - Returns Document objects (not just indices)
-#   - Preserves metadata
-#
-# Compare to Part 2: Same result, much less code!
-# ============================================================================
-print("\n" + "="*80)
-print("PART 3: LangChain FAISS Integration")
-print("="*80)
-
-# Use LangChain's embedding wrapper (handles API calls internally)
-embeddings_model = OpenAIEmbeddings(
-    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
-)
-
-print("\nBuilding LangChain FAISS vector store...")
-
-# ONE LINE to build the store! LangChain handles:
-# - Extracting text from documents
-# - Generating embeddings
-# - Creating FAISS index
-# - Mapping indices back to documents
-faiss_store = LangChainFAISS.from_documents(
-    documents=documents,
-    embedding=embeddings_model
-)
-print("✓ FAISS store created")
-
-# Search - returns Documents with metadata (not just indices!)
-print(f"\nSearching: '{query}'")
-results = faiss_store.similarity_search(query, k=3)
-
-print(f"\nTop {len(results)} results:")
-for i, doc in enumerate(results, 1):
-    print(f"\n#{i}")
-    print(f"Ticket: {doc.metadata['ticket_id']}")      # Metadata preserved!
-    print(f"Category: {doc.metadata['category']}")
-    print(f"Content: {doc.page_content[:150]}...")
-
-# You can also get similarity scores
-print("\n--- With Similarity Scores ---")
-results_with_scores = faiss_store.similarity_search_with_score(query, k=3)
-
-for i, (doc, score) in enumerate(results_with_scores, 1):
-    print(f"\n#{i} - Score: {score:.4f}")
-    print(f"Ticket: {doc.metadata['ticket_id']}")
-
-# ============================================================================
-# PART 4: Chroma Vector Store
-# ============================================================================
-#
-# WHY CHROMA? (vs raw FAISS)
+# WHY CHROMA?
 #   ✓ Automatic persistence (data survives restart)
 #   ✓ Metadata storage and filtering
 #   ✓ Built-in embedding generation
@@ -502,8 +397,15 @@ for i, (doc, score) in enumerate(results_with_scores, 1):
 # THIS IS OUR RECOMMENDED APPROACH FOR THE WORKSHOP!
 # ============================================================================
 print("\n" + "="*80)
-print("PART 4: Chroma Vector Store")
+print("PART 2: Chroma Vector Store")
 print("="*80)
+
+# Use LangChain's embedding wrapper (handles API calls internally)
+embeddings_model = OpenAIEmbeddings(
+    model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
+)
+
+query = "Authentication problems after password reset"
 
 print("\nBuilding Chroma vector store...")
 
@@ -557,7 +459,7 @@ for i, doc in enumerate(mmr_results, 1):
     print(f"Title: {tickets[int(doc.metadata['ticket_id'].split('-')[1]) - 1]['title']}")
 
 # ============================================================================
-# PART 5: Metadata Filtering
+# PART 3: Metadata Filtering
 # ============================================================================
 #
 # THE KILLER FEATURE OF VECTOR DATABASES!
@@ -574,7 +476,7 @@ for i, doc in enumerate(mmr_results, 1):
 # This is MUCH faster than filtering after retrieval!
 # ============================================================================
 print("\n" + "="*80)
-print("PART 5: Metadata Filtering")
+print("PART 3: Metadata Filtering")
 print("="*80)
 
 # -----------------------------------------------------------------------------
@@ -617,7 +519,7 @@ for i, doc in enumerate(high_priority_results, 1):
     print(f"Priority: {doc.metadata['priority']}")
 
 # ============================================================================
-# PART 6: Comparing Chunking Strategies
+# PART 4: Comparing Chunking Strategies
 # ============================================================================
 #
 # PURPOSE: Show how different chunking affects retrieval
@@ -632,7 +534,7 @@ for i, doc in enumerate(high_priority_results, 1):
 #   4. Measure relevance (which found the right answer?)
 # ============================================================================
 print("\n" + "="*80)
-print("PART 6: Evaluating Chunking Strategies")
+print("PART 4: Evaluating Chunking Strategies")
 print("="*80)
 
 # Build stores with different chunking
@@ -689,23 +591,19 @@ KEY TAKEAWAYS:
    → RecursiveCharacterTextSplitter is a good default
    → SemanticChunker is best quality but expensive
 
-2. FAISS provides fast, efficient similarity search
-   → Low-level, good for understanding concepts
-   → No persistence, no metadata filtering
-
-3. CHROMA offers production-ready features
+2. CHROMA offers production-ready features
    → Persistence (survives restart)
    → Metadata filtering (search within subsets)
    → MMR for diverse results
 
-4. METADATA FILTERING is powerful
+3. METADATA FILTERING is powerful
    → Filter by category, priority, date, etc.
    → Faster than post-retrieval filtering
 
-5. ALWAYS EXPERIMENT with your specific data
+4. ALWAYS EXPERIMENT with your specific data
    → What works for support tickets ≠ what works for PDFs
    → Measure retrieval quality!
 
-NEXT: Module 3 - Building the RAG Pipeline
+NEXT: Module 3 - Indexing Strategies
 """)
 

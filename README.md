@@ -60,7 +60,7 @@ python demo.py
 **Learn:**
 - Fixed-size vs recursive vs semantic chunking
 - Structure-aware splitting (Markdown/HTML)
-- Build vector stores with Chroma and FAISS
+- Build vector stores with Chroma
 
 **Run:**
 ```bash

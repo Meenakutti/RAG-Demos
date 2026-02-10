@@ -29,7 +29,7 @@ You've just built a complete, production-ready RAG system from scratch. Here's w
 **Core Skills:**
 - Implemented **Recursive Character Text Splitter** (best general-purpose)
 - Learned the chunking trade-off: completeness vs specificity
-- Built vector stores with **Chroma** (high-level) and **FAISS** (low-level)
+- Built vector stores with **Chroma**
 - Understood why chunk overlap (10-20%) preserves context
 
 **Key Takeaway:** Bad chunking = bad retrieval. Chunks should be self-contained semantic units, typically 200-500 tokens.

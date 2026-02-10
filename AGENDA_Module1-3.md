@@ -115,6 +115,8 @@ Before diving into details, let's understand where today's topics fit in a typic
 **Folder:** `modules/1_embeddings/`  
 **Framework:** OpenAI API (direct)
 
+> You can't talk about embeddings without talking about their storage which is vector databases, so we will delve into details of both.
+
 - [ ] Generate embeddings using OpenAI API
 - [ ] Compute semantic similarity scores
 - [ ] Visualize similarity with heatmaps
@@ -133,7 +135,7 @@ Before diving into details, let's understand where today's topics fit in a typic
 - [ ] Recursive text splitting
 - [ ] Semantic chunking
 - [ ] Structure-aware splitting (Markdown/HTML)
-- [ ] Build vector stores with Chroma/FAISS
+- [ ] Build vector stores with Chroma
 - [ ] Run `python demo.py`
 - [ ] Exercises & Q&A
 

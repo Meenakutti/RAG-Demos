@@ -287,8 +287,8 @@ for rank, idx in enumerate(top_indices, 1):
 # OPTIONS FOR VISUALIZATION:
 # ──────────────────────────
 # 1. Similarity heatmap - show pairwise similarities (what we do here)
-# 2. t-SNE/UMAP - project to 2D (LOSES information, can be misleading!)
-# 3. PCA - linear projection (also loses information)
+# 2. t-SNE/UMAP - project to 2D (LOSES information, can be misleading!) - OUT OF SCOPE OF THIS CLASS
+# 3. PCA - linear projection (also loses information) - - OUT OF SCOPE OF THIS CLASS
 #
 # WE CHOOSE: Similarity heatmap
 # WHY? Shows TRUE relationships without distortion

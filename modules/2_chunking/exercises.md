@@ -151,9 +151,9 @@ for size in chunk_sizes:
 
 **Task**: Display similarity scores alongside search results.
 
-**In the demo code, find the basic search** (around line 290):
+**In the demo code, find the basic search**:
 ```python
-results = faiss_store.similarity_search(query, k=3)
+results = chroma_store.similarity_search(query, k=3)
 
 print(f"\nTop {len(results)} results:")
 for i, doc in enumerate(results, 1):
@@ -164,7 +164,7 @@ for i, doc in enumerate(results, 1):
 **Replace with this version that shows scores**:
 ```python
 # Use similarity_search_with_score instead
-results_with_scores = faiss_store.similarity_search_with_score(query, k=3)
+results_with_scores = chroma_store.similarity_search_with_score(query, k=3)
 
 print(f"\nTop {len(results_with_scores)} results:")
 for i, (doc, score) in enumerate(results_with_scores, 1):
@@ -173,7 +173,7 @@ for i, (doc, score) in enumerate(results_with_scores, 1):
     print(f"Category: {doc.metadata['category']}")
 ```
 
-**Note**: Lower distance = more similar (FAISS uses L2 distance by default)
+**Note**: Lower distance = more similar (Chroma uses L2 distance by default)
 
 ---
 
@@ -241,7 +241,7 @@ for doc in results:
 ```python
 import json
 import os
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
@@ -262,18 +262,22 @@ documents = [
 
 embeddings = OpenAIEmbeddings(model='text-embedding-3-small')
 
-# Step 1: Build and save
+# Step 1: Build and save (Chroma persists with persist_directory)
 print("Building vector store...")
-store = FAISS.from_documents(documents, embeddings)
-store.save_local("./my_faiss_index")
-print("✓ Saved to ./my_faiss_index")
+store = Chroma.from_documents(
+    documents, 
+    embeddings, 
+    collection_name="my_collection",
+    persist_directory="./my_chroma_db"
+)
+print("✓ Saved to ./my_chroma_db")
 
 # Step 2: Load it back
 print("\nLoading vector store...")
-loaded_store = FAISS.load_local(
-    "./my_faiss_index",
-    embeddings,
-    allow_dangerous_deserialization=True
+loaded_store = Chroma(
+    persist_directory="./my_chroma_db",
+    embedding_function=embeddings,
+    collection_name="my_collection"
 )
 print("✓ Loaded from disk")
 
@@ -378,15 +382,21 @@ chunks = splitter.split_documents(documents)
 
 ### Vector Stores
 ```python
-# FAISS
-from langchain_community.vectorstores import FAISS
-store = FAISS.from_documents(documents, embeddings)
-store.save_local("./index")
-store = FAISS.load_local("./index", embeddings, allow_dangerous_deserialization=True)
-
-# Chroma
+# Chroma (recommended)
 from langchain_community.vectorstores import Chroma
-store = Chroma.from_documents(documents, embeddings, persist_directory="./chroma_db")
+
+# Create with persistence
+store = Chroma.from_documents(
+    documents, 
+    embeddings, 
+    persist_directory="./chroma_db"
+)
+
+# Load existing store
+store = Chroma(
+    persist_directory="./chroma_db",
+    embedding_function=embeddings
+)
 ```
 
 ### Searching
