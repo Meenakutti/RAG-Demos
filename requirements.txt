@@ -1,4 +1,6 @@
 # Core RAG Frameworks
+# NOTE: chromadb (Chroma) currently has compatibility issues with Python 3.14+.
+#       Use Python 3.13 or earlier when installing these requirements.
 langchain>=0.3.0
 langchain-openai>=0.2.0
 langchain-community>=0.3.0

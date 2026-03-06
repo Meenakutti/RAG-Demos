@@ -109,7 +109,11 @@ print("\n" + "="*80)
 print("Loading Support Tickets")
 print("="*80)
 
-with open('../../data/synthetic_tickets.json', 'r', encoding='utf-8') as f:
+from pathlib import Path
+
+# make path independent of current working directory
+DATA_FILE = Path(__file__).resolve().parents[2] / 'data' / 'synthetic_tickets.json'
+with DATA_FILE.open('r', encoding='utf-8') as f:
     tickets = json.load(f)
 
 # -----------------------------------------------------------------------------
@@ -283,6 +287,7 @@ print("✓ Returns full documents, not fragments")
 print("✗ Slower for large datasets (linear scan)")
 print("✗ No vector similarity search\n")
 
+ # Stop here to avoid long LLM calls in Summary/Tree/Keyword demos
 # -----------------------------------------------------------------------------
 # Build the Summary Index
 # -----------------------------------------------------------------------------
@@ -384,9 +389,9 @@ print("✓ Efficient for large document collections")
 print("✗ More complex to build and maintain\n")
 
 # Use all documents (but warn about LLM costs)
-tree_documents = documents
+tree_documents = documents[:10]  # Use only first 10 documents to avoid long LLM calls
 print(f"Building Tree Index with {len(tree_documents)} documents...")
-
+ # Stop here to avoid long LLM calls in Tree/Keyword demos
 # -----------------------------------------------------------------------------
 # Build the Tree Index
 # -----------------------------------------------------------------------------
@@ -425,7 +430,12 @@ print("Source Documents:")
 for i, node in enumerate(tree_response.source_nodes[:3], 1):
     print(f"\n{i}. {node.metadata.get('ticket_id', 'Unknown')}")
     print(f"   {node.text[:150]}...")
-
+ 
+ # Stop here to avoid long LLM calls in Keyword demo
+ 
+# Stop here to avoid long LLM calls in Keyword demo 
+# Stop here to avoid long LLM calls in Keyword demo 
+  # Stop here to avoid long LLM calls in Keyword demo
 # ============================================================================
 # PART 4: Keyword Table Index
 # ============================================================================
@@ -472,6 +482,7 @@ for i, node in enumerate(tree_response.source_nodes[:3], 1):
 #   - User queries with synonyms/paraphrases
 #
 # ============================================================================
+# Stop here to avoid long LLM calls in Keyword demo
 print("\n" + "="*80)
 print("PART 4: Keyword Table Index")
 print("="*80)

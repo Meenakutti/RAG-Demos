@@ -174,6 +174,117 @@ def calculate_retrieval_metrics(retrieved_ids, relevant_ids, k=3):
         'relevant_count': len(relevant_set)
     }
 
+retrieved = ['TICK-001', 'TICK-002', 'TICK-003']
+relevant = ['TICK-001', 'TICK-003']
+
+metrics = calculate_retrieval_metrics(retrieved, relevant, k=3)
+
+avg_precision = np.mean(metrics['precision'])
+avg_recall = np.mean(metrics['recall'])
+avg_f1 = np.mean(metrics['f1'])
+
+print(f"\nPrecision@3: {avg_precision:.4f}")
+print(f"  → What % of retrieved documents are actually relevant?")
+print(f"  → Target: > 0.80 for production")
+
+print(f"\nRecall@3:    {avg_recall:.4f}")
+print(f"  → What % of all relevant documents did we find?")
+print(f"  → Target: > 0.70 for production")
+
+print(f"\nF1 Score@3:  {avg_f1:.4f}")
+print(f"  → Balanced measure of retrieval quality")
+print(f"  → Target: > 0.75 for production")
+
+# exercise 1 complete
+
+for k in [1, 3, 5, 10]:
+    metrics = []
+    for query in eval_queries:
+        docs = vector_store.similarity_search(query['question'], k=k)
+        retrieved = [doc.metadata['ticket_id'] for doc in docs]
+        m = calculate_retrieval_metrics(retrieved, query['relevant_ticket_ids'], k=k)
+        metrics.append(m)
+    
+    print(f"k={k}: Precision={np.mean([m['precision'] for m in metrics]):.2f}, "
+          f"Recall={np.mean([m['recall'] for m in metrics]):.2f}")
+    
+#exercise 2 complete
+
+from collections import defaultdict
+
+def analyze_failures(eval_queries, vector_store, threshold=0.5):
+    """Find queries with Precision < threshold"""
+    failures = []
+    
+    for query in eval_queries:
+        docs = vector_store.similarity_search(query['question'], k=3)
+        retrieved = [doc.metadata['ticket_id'] for doc in docs]
+        metrics = calculate_retrieval_metrics(retrieved, query['relevant_ticket_ids'], k=3)
+        
+        if metrics['precision'] < threshold:
+            failures.append({
+                'query': query['question'],
+                'precision': metrics['precision'],
+                'retrieved': retrieved,
+                'expected': query['relevant_ticket_ids'],
+                'category': query.get('category', 'Unknown')
+            })
+    
+    # Group by category to find patterns
+    by_category = defaultdict(list)
+    for f in failures:
+        by_category[f['category']].append(f)
+    
+    print(f"Found {len(failures)} failures")
+    for category, items in by_category.items():
+        print(f"  {category}: {len(items)} failures")
+    
+    return failures
+
+failures = analyze_failures(eval_queries, vector_store)
+
+if failures:
+    print("\n\nExample failure:")
+    for i, f in enumerate(failures, 1):
+        print(f"  Query: {f['query']}")
+        print(f"  Expected: {f['expected']}")
+        print(f"  Retrieved: {f['retrieved']}")
+
+
+# **Task**: Add message history so the assistant remembers previous questions.
+
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+# Store chat history
+chat_history = []
+
+# Create conversational prompt
+conv_prompt = ChatPromptTemplate.from_messages([
+    ("system", "Answer using context: {context}"),
+    MessagesPlaceholder(variable_name="history"),
+    ("human", "{question}")
+])
+
+def format_docs(docs):
+    return "\n\n---\n\n".join([doc.page_content for doc in docs])
+
+# Build chain with history
+def ask_with_history(question):
+    context = format_docs(retriever.invoke(question))
+    chain = conv_prompt | llm | StrOutputParser()
+    response = chain.invoke({"context": context, "history": chat_history, "question": question})
+    chat_history.append(HumanMessage(content=question))
+    chat_history.append(AIMessage(content=response))
+    return response
+
+# Test conversation - context carries over
+result1 = ask_with_history("What causes authentication failures?")
+result2 = ask_with_history("How do I fix it?")  # Remembers auth topic
+
+
+ # Stop here to avoid long LLM calls in next exercises
+# Stop here to avoid long LLM calls in next exercises
 # Evaluate retrieval for all queries
 print("\nEvaluating retrieval for all queries...")
 retrieval_results = []

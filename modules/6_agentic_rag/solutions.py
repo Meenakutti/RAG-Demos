@@ -13,6 +13,14 @@ from langchain_openai import ChatOpenAI
 from langchain_core.tools import Tool
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import OpenAIEmbeddings
+
+import sys
+if sys.version_info >= (3, 14):
+    raise RuntimeError(
+        "This solutions module relies on Chroma; it will not work under Python 3.14+. "
+        "Please downgrade to Python 3.13 or lower."
+    )
+
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 

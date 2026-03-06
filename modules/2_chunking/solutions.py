@@ -9,6 +9,11 @@ Run each section independently or the whole file.
 
 import json
 import os
+import sys
+# Python 3.14+ triggers a chromadb/pydantic error when importing Chroma
+if sys.version_info >= (3, 14):
+    raise RuntimeError("Chroma examples require Python 3.13 or earlier.")
+
 from langchain_text_splitters import (
     CharacterTextSplitter,
     RecursiveCharacterTextSplitter

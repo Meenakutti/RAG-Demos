@@ -131,8 +131,8 @@ print("="*80)
 # Retrievers are the interface for querying the vector store
 # Reference: https://python.langchain.com/docs/modules/data_connection/retrievers/
 retriever = vector_store.as_retriever(
-    search_type="similarity",  # Use cosine similarity for ranking
-    search_kwargs={"k": 3}  # Retrieve top-3 most similar documents
+   search_type="mmr",
+    search_kwargs={"k": 1, "fetch_k": 1} # Retrieve top-3 most similar documents
     # Other options:
     # - "mmr" (Maximal Marginal Relevance): Balances relevance with diversity
     # - "similarity_score_threshold": Only return docs above a score threshold
@@ -143,11 +143,25 @@ print(f"  - Search type: similarity")
 print(f"  - Top-K results: 3")
 print("\nTIP: k=3-5 is usually optimal. Too few → missing context, too many → noise")
 
+# Utility: remove duplicate tickets based on ticket_id
+
+def dedupe_docs(docs):
+    seen = set()
+    unique = []
+    for d in docs:
+        tid = d.metadata.get('ticket_id')
+        if tid not in seen:
+            seen.add(tid)
+            unique.append(d)
+    return unique
+
 # Test retriever
 test_query = "Users can't log in after changing passwords"
 print(f"\nTest query: '{test_query}'")
 retrieved_docs = retriever.invoke(test_query)
 
+# dedupe results before display
+retrieved_docs = dedupe_docs(retrieved_docs)
 print(f"\nRetrieved {len(retrieved_docs)} documents:")
 for i, doc in enumerate(retrieved_docs, 1):
     print(f"\n#{i} - {doc.metadata['ticket_id']}: {doc.metadata['title']}")
@@ -168,21 +182,13 @@ print("="*80)
 # 2. Define what to do when information is missing
 # 3. Request citations for transparency and verification
 # 4. Set the role/persona for appropriate tone
-prompt_template = """You are SupportDesk AI, a technical support assistant that helps engineers troubleshoot issues using historical support ticket data.
+prompt_template = """Answer using only the context. Format as bullet points with ticket citations.
 
-CRITICAL RULES:
-1. Answer ONLY using information from the provided context
-2. If the answer is not in the context, say "I don't have enough information in the ticket history to answer that question."
-3. DO NOT make up information or use external knowledge
-4. Always cite the ticket ID when referencing information
-5. If multiple tickets are relevant, mention all of them
-
-Context from support tickets:
-{context}
-
+Context: {context}
+how
 Question: {question}
 
-Helpful Answer (with ticket citations):"""
+Answer (bullet points with sources):"""
 
 # Convert string template to ChatPromptTemplate
 # This creates a reusable template with variable placeholders
@@ -281,6 +287,7 @@ for query in test_queries:
     
     # Show retrieved context
     docs = retriever.invoke(query)
+    docs = dedupe_docs(docs)  # remove duplicates
     print(f"\nRetrieved {len(docs)} relevant tickets:")
     for i, doc in enumerate(docs, 1):
         print(f"\n  [{i}] {doc.metadata['ticket_id']}: {doc.metadata['title']}")
@@ -401,32 +408,3 @@ print("3. Always return source documents for verification")
 print("4. Implement fallbacks for low-confidence matches")
 print("5. Temperature=0 for deterministic, grounded answers")
 print("\nNext: Hour 4 - Evaluation & Metrics")
-
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
-# Store chat history
-chat_history = []
-
-# Create conversational prompt
-conv_prompt = ChatPromptTemplate.from_messages([
-    ("system", "Answer using context: {context}"),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{question}")
-])
-
-def format_docs(docs):
-    return "\n\n---\n\n".join([doc.page_content for doc in docs])
-
-# Build chain with history
-def ask_with_history(question):
-    context = format_docs(retriever.invoke(question))
-    chain = conv_prompt | llm | StrOutputParser()
-    response = chain.invoke({"context": context, "history": chat_history, "question": question})
-    chat_history.append(HumanMessage(content=question))
-    chat_history.append(AIMessage(content=response))
-    return response
-
-# Test conversation - context carries over
-result1 = ask_with_history("What causes authentication failures?")
-result2 = ask_with_history("How do I fix it?")  # Remembers auth topic

@@ -8,8 +8,16 @@ Solutions for all exercises in exercises.md
 
 import json
 import os
+import sys
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+
+if sys.version_info >= (3, 14):
+    raise RuntimeError(
+        "Python 3.14 or newer is not supported by the Chroma vector store used below.\n"
+        "Run these examples with Python 3.13 or earlier."
+    )
+
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -22,7 +30,9 @@ load_dotenv()
 # Setup: Load data and create vector store
 # ============================================================================
 print("Loading data...")
-with open('../../data/synthetic_tickets.json', 'r') as f:
+from pathlib import Path
+DATA_FILE = Path(__file__).resolve().parents[2] / 'data' / 'synthetic_tickets.json'
+with DATA_FILE.open('r', encoding='utf-8') as f:
     tickets = json.load(f)
 
 documents = []
@@ -148,7 +158,7 @@ for k in [1, 3, 5, 10]:
 print("\n\nMMR search (diverse results):")
 retriever_mmr = vector_store.as_retriever(
     search_type="mmr",
-    search_kwargs={"k": 3, "fetch_k": 10}
+    search_kwargs={"k": 3, "fetch_k": 20}
 )
 docs_mmr = retriever_mmr.invoke(test_query)
 for doc in docs_mmr:
@@ -283,7 +293,8 @@ stuff_chain = (
 result = stuff_chain.invoke(test_query)
 print(f"  Time: {time.time() - start:.2f}s")
 print(f"  Answer: {result[:150]}...")
-
+ 
+# Stop here to avoid long LLM calls in map_reduce and refine demos
 # MAP_REDUCE simulation - process docs individually then summarize
 print("\nMAP_REDUCE strategy:")
 start = time.time()
@@ -308,7 +319,7 @@ print("\n→ 'stuff': Fastest, concatenates all docs into one prompt")
 print("→ 'map_reduce': Parallel processing, good for many docs")
 print("→ 'refine': Iterative, highest quality but slowest (not shown - similar to map_reduce)")
 
-
+# Stop here to avoid long LLM calls in refine demo
 # ============================================================================
 # Exercise 6: Add Metadata Filtering (Medium)
 # ============================================================================
@@ -343,7 +354,7 @@ docs_filtered = vector_store.similarity_search(
 for doc in docs_filtered:
     print(f"  - {doc.metadata['ticket_id']} ({doc.metadata['category']})")
 
-
+# Stop here to avoid long LLM calls in next exercises
 # ============================================================================
 # Exercise 7: Add Streaming Responses (Medium)
 # ============================================================================
@@ -351,7 +362,11 @@ print("\n" + "=" * 80)
 print("EXERCISE 7: Add Streaming Responses")
 print("=" * 80)
 
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+# The callbacks package moved in recent versions; try both locations
+try:
+    from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+except ImportError:
+    from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 # Create streaming LLM
 streaming_llm = ChatOpenAI(
@@ -385,6 +400,7 @@ result = streaming_chain.invoke(query)
 print("\n")  # Newline after streaming
 
 
+# Stop here to avoid long LLM calls in next exercises
 # ============================================================================
 # Exercise 8: Multi-Turn Conversation (Medium)
 # ============================================================================
@@ -434,7 +450,7 @@ for user_msg in conversation:
     result = ask_with_history(user_msg)
     print(f"Assistant: {result[:200]}...")
 
-
+# Stop here to avoid long LLM calls in next exercises
 # ============================================================================
 # Bonus: Hallucination Detection (Challenge)
 # ============================================================================
@@ -446,7 +462,8 @@ def detect_hallucination(query, answer, source_documents, llm):
     """
     Use LLM-as-judge to check if answer is grounded in sources
     """
-    source_text = "\n\n".join([doc.page_content for doc in source_documents])
+    source_text = "\n\n".join([
+        doc.page_content for doc in source_documents])
     
     detection_prompt = f"""You are a fact-checker. Determine if the answer is fully grounded in the source documents.
 
@@ -469,20 +486,23 @@ Response:"""
 
 # Test hallucination detection
 test_query = "How do I fix authentication issues?"
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=retriever,
-    return_source_documents=True
-)
-result = qa_chain.invoke({"query": test_query})
+
+# perform manual retrieval + LLM call since RetrievalQA is deprecated
+docs = retriever.invoke(test_query)
+context = format_docs(docs)
+prompt_text = f"Answer using only this context. Cite ticket IDs.\n\nContext: {context}\n\nQuestion: {test_query}\n\nAnswer:"
+response = llm.invoke(prompt_text)
+result = {
+    'result': response.content,
+    'source_documents': docs
+}
 
 print(f"\nQuery: {test_query}")
 print(f"Answer: {result['result'][:200]}...")
 print(f"\nHallucination check:")
 check_result = detect_hallucination(
-    test_query, 
-    result['result'], 
+    test_query,
+    result['result'],
     result['source_documents'],
     llm
 )

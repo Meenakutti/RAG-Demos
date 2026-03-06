@@ -20,7 +20,8 @@ Evaluation is critical for building reliable RAG systems. Without proper metrics
 
 ### With Evaluation
 ✅ Data-driven decisions  
-✅ Catch regressions early  
+✅ Catch regressions early
+  
 ✅ Optimize systematically  
 ✅ Build confidence in system  
 

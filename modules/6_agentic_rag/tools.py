@@ -12,9 +12,17 @@ This module defines tools that the agent can use:
 
 import json
 import os
+import sys
 from typing import List, Dict, Any
 from langchain_core.tools import Tool
 from langchain_openai import OpenAIEmbeddings
+
+if sys.version_info >= (3, 14):
+    raise RuntimeError(
+        "Chroma cannot be initialized under Python 3.14+. "
+        "Please downgrade to 3.13 or lower before running agentic RAG tools."
+    )
+
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 

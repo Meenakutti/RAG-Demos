@@ -18,7 +18,45 @@ This comprehensive workshop teaches you to build a production-ready Retrieval-Au
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 1. Create & activate a Python virtual environment
+```bash
+# choose a name like ".venv" or "env"; do not use ".env" (that file stores
+# your configuration variables and will block venv creation)
+# If you have multiple Python versions installed, pick the correct one with
+# the Windows launcher (e.g. use 3.13 since 3.14 is incompatible with Chroma):
+py -3.13 -m venv .venv
+# or explicitly call a python executable:
+# C:\Python313\python.exe -m venv .venv
+```
+
+#### Activating the venv
+- **PowerShell** (preferred on Windows):
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  ```
+  If you see an error such as
+  > running scripts is disabled on this system
+  
+  then your execution policy is restricting script execution. Fix it by
+  running (as Administrator or current user):
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  # or, for a more permissive policy:
+  # Set-ExecutionPolicy Unrestricted -Scope CurrentUser
+  ```
+  then try activation again.
+
+- **cmd.exe** (no policy issues):
+  ```cmd
+  .\.venv\Scripts\activate.bat
+  ```
+
+- **Git Bash / WSL**:
+  ```bash
+  source .venv/Scripts/activate
+  ```
+
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
@@ -31,6 +69,16 @@ cp .env.example .env
 # Edit .env and add your API key
 # OPENAI_API_KEY=sk-your-key-here
 ```
+
+> **Python version notice:**
+> The workshop examples rely on the Chroma vector store (via the `chromadb`
+> package). Chroma currently suffers from a compatibility bug with Python
+> 3.14 and later (pydantic v1 can't infer certain field types). If you are
+> running Python 3.14+, you'll see a traceback about `unable to infer type for
+> attribute "chroma_server_nofile"` when creating the database. To avoid this,
+> please use **Python 3.13 or earlier**. You can install a compatible Python
+> version with `pyenv`, `conda`, or the official Windows installer.
+
 
 ### 3. Test Installation
 ```bash

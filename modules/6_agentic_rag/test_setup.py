@@ -30,6 +30,10 @@ try:
 except ImportError as e:
     print(f"   ✗ langchain_community.vectorstores: {e}")
 
+# warn about Python version compatibility with chromadb
+if sys.version_info >= (3, 14):
+    print("   ⚠️ WARNING: Python 3.14+ is incompatible with Chroma. Tests may fail.")
+
 try:
     from langchain_core.tools import Tool
     print("   ✓ langchain_core.tools")

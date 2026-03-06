@@ -40,10 +40,29 @@ LEARNING RESOURCES:
 import json
 import numpy as np              # For numerical operations on embedding vectors
 import os
+import sys
+import io
+
+# Force UTF-8 I/O on Windows to avoid UnicodeEncodeError for characters like '✓'
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('PYTHONUTF8', '1')
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+except Exception:
+    try:
+        stdout_buf = getattr(sys.stdout, "buffer", None) or os.fdopen(1, "wb", closefd=False)
+        stderr_buf = getattr(sys.stderr, "buffer", None) or os.fdopen(2, "wb", closefd=False)
+        sys.stdout = io.TextIOWrapper(stdout_buf, encoding='utf-8', errors='replace', line_buffering=True)
+        sys.stderr = io.TextIOWrapper(stderr_buf, encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception:
+        pass
+
 from openai import OpenAI       # OpenAI API client for generating embeddings
 from sklearn.metrics.pairwise import cosine_similarity  # Measure similarity between vectors
 import matplotlib.pyplot as plt # For visualizing embeddings
 from dotenv import load_dotenv  # Load environment variables from .env file
+from pathlib import Path
 
 # =============================================================================
 # SETUP: Load Environment Variables
@@ -91,7 +110,8 @@ print(f"Embedding dimension: {embedding_dim}")
 # LOAD DATA: Support Tickets
 # =============================================================================
 print("\nLoading support tickets...")
-with open('../../data/synthetic_tickets.json', 'r') as f:
+DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "synthetic_tickets.json"
+with open(DATA_PATH, 'r', encoding='utf-8') as f:
     tickets = json.load(f)
 print(f"Loaded {len(tickets)} support tickets")
 
@@ -207,7 +227,7 @@ print("PART 2: Computing Similarity Scores")
 print("="*80)
 
 # Create a search query - this is what a user might type
-query = "Users can't login after changing password"
+query = "how to make pizza"
 print(f"\nSearch Query: '{query}'")
 
 # -----------------------------------------------------------------------------
@@ -269,6 +289,11 @@ print("-" * 80)
 for rank, idx in enumerate(top_indices, 1):
     ticket = tickets[idx]
     score = similarities[idx]
+    
+    if score < 0.5:
+
+        continue
+
     
     print(f"\n#{rank} - Similarity: {score:.4f}")
     print(f"Ticket ID: {ticket['ticket_id']}")

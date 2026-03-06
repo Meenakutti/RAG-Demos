@@ -1,3 +1,6 @@
+from pathlib import Path
+DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "synthetic_tickets.json"
+
 # -*- coding: utf-8 -*-
 """
 Module 2: Chunking & Vector Stores Demo
@@ -35,8 +38,62 @@ from langchain_text_splitters import (  # Various splitting strategies
     MarkdownHeaderTextSplitter,  # Splits based on markdown headers
     HTMLHeaderTextSplitter  # Splits based on HTML tags
 )
-from langchain_experimental.text_splitter import SemanticChunker  # AI-powered semantic chunking
-from langchain_community.vectorstores import Chroma  # Vector database
+import sys
+# enforce Python <3.14 due to chromadb/pydantic incompatibility
+if sys.version_info >= (3, 14):
+    raise RuntimeError(
+        "Chroma vector store is not supported on Python 3.14+. "
+        "Please switch to Python 3.13 or earlier."
+    )
+
+import os
+import numpy as np
+
+# force UTF-8 mode early (equivalent to PYTHONUTF8=1)
+os.environ.setdefault('PYTHONUTF8','1')
+
+# helper that avoids UnicodeEncodeError by writing to buffer
+# (prints are used widely with checkmarks) 
+def safe_print(*args, **kwargs):
+    sep = kwargs.pop('sep', ' ')
+    end = kwargs.pop('end', '\n')
+    text = sep.join(str(a) for a in args) + end
+    try:
+        sys.stdout.write(text)
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write(text.encode('utf-8', errors='replace'))
+    except Exception:
+        # fallback
+        sys.__stdout__.write(text)
+
+
+# Ensure UTF-8 output on Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+# SemanticChunker location changed across LangChain releases; try fallbacks
+try:
+    from langchain_experimental.text_splitter import SemanticChunker  # AI-powered semantic chunking
+except Exception:
+    try:
+        from langchain.experimental.text_splitter import SemanticChunker
+    except Exception:
+        SemanticChunker = None
+        print("Warning: SemanticChunker not available; semantic chunking will be skipped.")
+
+# Chroma can come from different packages (langchain_community, langchain)
+try:
+    from langchain_community.vectorstores import Chroma  # Vector database
+except Exception:
+    try:
+        from langchain.vectorstores import Chroma
+    except Exception:
+        Chroma = None
+        print("Error: Chroma vector store not available. Install langchain-community or a compatible package.")
+
 from langchain_openai import OpenAIEmbeddings  # OpenAI embedding function
 from langchain_core.documents import Document  # Document abstraction
 from dotenv import load_dotenv
@@ -55,7 +112,7 @@ print("="*80)
 # Load our support ticket dataset
 # These are relatively SHORT documents - good for demonstrating chunking concepts
 # In real scenarios, you'd chunk PDFs, articles, manuals (much longer!)
-with open('../../data/synthetic_tickets.json', 'r') as f:
+with DATA_FILE.open("r", encoding="utf-8") as f:
     tickets = json.load(f)
 print(f"\nLoaded {len(tickets)} support tickets")
 
@@ -135,7 +192,7 @@ fixed_splitter = CharacterTextSplitter(
 )
 fixed_chunks = fixed_splitter.split_documents(documents)
 
-print(f"✓ Created {len(fixed_chunks)} chunks")
+safe_print(f"[OK] Created {len(fixed_chunks)} chunks")
 print(f"  Chunk size: 200 chars, Overlap: 20 chars")
 print(f"  Sample chunk: {fixed_chunks[0].page_content[:100]}...")
 
@@ -176,7 +233,7 @@ recursive_splitter = RecursiveCharacterTextSplitter(
 )
 recursive_chunks = recursive_splitter.split_documents(documents)
 
-print(f"✓ Created {len(recursive_chunks)} chunks")
+safe_print(f"[OK] Created {len(recursive_chunks)} chunks")
 print(f"  Tries to split on paragraph/sentence boundaries")
 print(f"  Sample chunk: {recursive_chunks[0].page_content[:100]}...")
 
@@ -230,7 +287,7 @@ semantic_splitter = SemanticChunker(
 
 demo_doc = Document(page_content=demo_paragraph.strip())
 semantic_chunks = semantic_splitter.split_documents([demo_doc])
-print(f"\n✓ Created {len(semantic_chunks)} chunks (expected: ~3 for 3 topics)")
+safe_print(f"\n[OK] Created {len(semantic_chunks)} chunks (expected: ~3 for 3 topics)")
 
 # Show each semantic chunk
 print("\n  📊 Resulting Semantic Chunks:")
@@ -306,7 +363,7 @@ markdown_splitter = MarkdownHeaderTextSplitter(
 )
 md_chunks = markdown_splitter.split_text(markdown_doc)
 
-print(f"✓ Created {len(md_chunks)} chunks from markdown")
+safe_print(f"[OK] Created {len(md_chunks)} chunks from markdown")
 print(f"  Preserves document structure and header context")
 if md_chunks:
     print(f"  Sample chunk with metadata:")
@@ -360,7 +417,7 @@ html_splitter = HTMLHeaderTextSplitter(
 )
 html_chunks = html_splitter.split_text(html_doc)
 
-print(f"✓ Created {len(html_chunks)} chunks from HTML")
+safe_print(f"[OK] Created {len(html_chunks)} chunks from HTML")
 print(f"  Respects HTML semantic structure")
 if html_chunks:
     print(f"  Sample chunk with metadata:")
@@ -380,7 +437,7 @@ if html_chunks:
 # LONG PDF: 50,000 chars → Definitely needs chunking!
 # =============================================================================
 print("\n--- Strategy 6: Whole Documents (No Chunking) ---")
-print(f"✓ Using {len(documents)} whole documents")
+safe_print(f"[OK] Using {len(documents)} whole documents")
 print(f"  Good for small documents like our tickets")
 
 # ============================================================================
@@ -405,22 +462,122 @@ embeddings_model = OpenAIEmbeddings(
     model=os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')
 )
 
-query = "Authentication problems after password reset"
+query = "Database is timing out frequently"
+#"Authentication problems after password reset"
 
 print("\nBuilding Chroma vector store...")
+
+# ensure persist dir exists and use absolute path
+persist_path = Path(__file__).resolve().parents[2] / "chroma_db"
+persist_path.mkdir(parents=True, exist_ok=True)
+
+if Chroma is None:
+    raise RuntimeError("Chroma import failed earlier; cannot build vector store.")
+
 
 # from_documents() handles everything:
 #   1. Extracts text from each Document
 #   2. Generates embeddings via the embedding model
 #   3. Stores vectors + metadata + original text
 #   4. Persists to disk (if persist_directory specified)
-chroma_store = Chroma.from_documents(
-    documents=documents,              # Our LangChain Document objects
-    embedding=embeddings_model,       # OpenAI embeddings
-    collection_name="support_tickets",# Like a "table" in a database
-    persist_directory="./chroma_db"   # Save to disk for persistence
-)
-print("✓ Chroma store created and persisted")
+chroma_store = None
+try:
+    chroma_store = Chroma.from_documents(
+        documents=documents,              # Our LangChain Document objects
+        embedding=embeddings_model,       # OpenAI embeddings
+        collection_name="support_tickets",# Like a "table" in a database
+        persist_directory=str(persist_path)   # Save to disk for persistence
+    )
+    safe_print("[OK] Chroma store created and persisted")
+except Exception as err:
+    # common issue: chromadb/pydantic incompatibility on Python 3.14
+    safe_print("Error creating Chroma vector store:", err)
+    safe_print("This often indicates an incompatible chromadb or pydantic version.")
+    safe_print("You can try fixing it by installing a compatible set:")
+    safe_print("  pip install 'chromadb<0.4' pydantic==1.10.12")
+    safe_print("Or switch to Python 3.13 or lower until the libraries support 3.14.")
+    safe_print("Vector store demo will be skipped.")
+    # leave chroma_store as None to skip further operations
+
+if chroma_store is None:
+    safe_print("Using in-memory fallback vector store (no chromadb). Building embeddings...")
+
+    class SimpleInMemoryStore:
+        def __init__(self, documents, embeddings_model):
+            self.documents = documents
+            texts = [d.page_content for d in documents]
+            # get embeddings for all documents
+            try:
+                vecs = embeddings_model.embed_documents(texts)
+            except Exception:
+                # fallback: try embedding each individually
+                vecs = [embeddings_model.embed_documents([t])[0] for t in texts]
+            self.vectors = np.array(vecs, dtype=float)
+            norms = np.linalg.norm(self.vectors, axis=1)
+            norms[norms == 0] = 1.0
+            self.norms = norms
+
+        def similarity_search(self, query, k=3, filter=None):
+            try:
+                qv = np.array(embeddings_model.embed_documents([query])[0], dtype=float)
+            except Exception:
+                qv = np.array(embeddings_model.embed_documents([query])[0], dtype=float)
+            qnorm = np.linalg.norm(qv)
+            if qnorm == 0:
+                qnorm = 1.0
+            sims = (self.vectors @ qv) / (self.norms * qnorm)
+            idx = np.argsort(-sims)
+            results = []
+            for i in idx:
+                if filter:
+                    ok = True
+                    for key, val in filter.items():
+                        if self.documents[i].metadata.get(key) != val:
+                            ok = False
+                            break
+                    if not ok:
+                        continue
+                results.append(self.documents[i])
+                if len(results) >= k:
+                    break
+            return results
+
+        def max_marginal_relevance_search(self, query, k=3):
+            try:
+                qv = np.array(embeddings_model.embed_documents([query])[0], dtype=float)
+            except Exception:
+                qv = np.array(embeddings_model.embed_documents([query])[0], dtype=float)
+            qnorm = np.linalg.norm(qv)
+            if qnorm == 0:
+                qnorm = 1.0
+            sims = (self.vectors @ qv) / (self.norms * qnorm)
+            candidates = list(np.argsort(-sims)[:min(len(self.documents), 50)])
+            if not candidates:
+                return []
+            selected = [candidates.pop(0)]
+            while len(selected) < k and candidates:
+                best = None
+                best_score = None
+                for c in candidates:
+                    sim_q = sims[c]
+                    sim_to_selected = max(
+                        (self.vectors[c] @ self.vectors[s]) / (self.norms[c] * self.norms[s])
+                        for s in selected
+                    )
+                    score = 0.7 * sim_q - 0.3 * sim_to_selected
+                    if best_score is None or score > best_score:
+                        best_score = score
+                        best = c
+                if best is None:
+                    break
+                selected.append(best)
+                candidates.remove(best)
+            return [self.documents[i] for i in selected]
+
+    chroma_store = SimpleInMemoryStore(documents, embeddings_model)
+    safe_print("[OK] Fallback in-memory vector store ready")
+
+
 
 # -----------------------------------------------------------------------------
 # Basic Similarity Search
@@ -433,7 +590,7 @@ for i, doc in enumerate(chroma_results, 1):
     print(f"\n#{i}")
     print(f"Ticket: {doc.metadata['ticket_id']}")
     print(f"Category: {doc.metadata['category']}")
-
+    
 # -----------------------------------------------------------------------------
 # MMR Search (Maximal Marginal Relevance)
 # -----------------------------------------------------------------------------
@@ -533,6 +690,7 @@ for i, doc in enumerate(high_priority_results, 1):
 #   3. Compare results
 #   4. Measure relevance (which found the right answer?)
 # ============================================================================
+exit(0)  # Skip this part for now since our tickets are short and chunking won't show much difference
 print("\n" + "="*80)
 print("PART 4: Evaluating Chunking Strategies")
 print("="*80)
